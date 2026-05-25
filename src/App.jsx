@@ -119,12 +119,12 @@ function App() {
   // Perform Login
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    if (loginUser === 'admin' && loginPass === 'password123') {
+    if (loginUser === 'admin' && loginPass === 'admin@123') {
       setIsAuthenticated(true);
       sessionStorage.setItem('admin_logged', 'true');
       setLoginError('');
     } else {
-      setLoginError('Invalid Username or Password. Hint: admin / password123');
+      setLoginError('Invalid Username or Password. Hint: admin / admin@123');
     }
   };
 
