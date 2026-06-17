@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import logoImg from './assets/logo.jpg';
 
-const API_BASE = 'https://rainbow-kids-school-website.onrender.com/api';
-const SERVER_URL = 'https://rainbow-kids-school-website.onrender.com';
+const SERVER_URL = 'https://rainbow-kids-school-website-b0za.onrender.com';
+const API_BASE = `${SERVER_URL}/api`;
 
 // Predefined mock fallbacks matching database
 const fallbackContact = {
@@ -20,7 +20,7 @@ const defaultSlides = [
   {
     id: 1,
     badge: "Admissions Open for 2026-27!",
-    title: "Rainbow Kids",
+    title: "Rainbow",
     subtitle: "Gurukula",
     slogan: '"Wisdom Today - Leaders Tomorrow"',
     tagline: "INTERNATIONAL PRE SCHOOL",
@@ -100,6 +100,13 @@ function App() {
   const [showAddGalleryModal, setShowAddGalleryModal] = useState(false);
   const [newGallery, setNewGallery] = useState({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedEventFile, setSelectedEventFile] = useState(null);
+  const [selectedBlogFile, setSelectedBlogFile] = useState(null);
+
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [editingBlog, setEditingBlog] = useState(null);
+  const [editingGallery, setEditingGallery] = useState(null);
+  const [editingTestimonial, setEditingTestimonial] = useState(null);
 
   // Inquiry Detailed view modal
   const [activeInquiryDetails, setActiveInquiryDetails] = useState(null);
@@ -325,7 +332,7 @@ function App() {
     }
   };
 
-  // Add Event / Announcement
+  // Add/Edit Event / Announcement
   const handleAddEvent = async (e) => {
     e.preventDefault();
     if (!newEvent.title || !newEvent.desc) {
@@ -334,34 +341,82 @@ function App() {
     }
 
     const dateStr = newEvent.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const payload = { ...newEvent, date: dateStr };
 
-    if (isBackendOnline) {
-      try {
-        const res = await fetch(`${API_BASE}/events`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          triggerToast("New Announcement added!");
-          setShowAddEventModal(false);
-          setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
-          fetchData();
+    if (editingEvent) {
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newEvent.title);
+          formData.append('date', dateStr);
+          formData.append('status', newEvent.status);
+          formData.append('desc', newEvent.desc);
+          if (selectedEventFile) {
+            formData.append('image', selectedEventFile);
+          }
+
+          const res = await fetch(`${API_BASE}/events/${editingEvent.id}`, {
+            method: 'PUT',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("Announcement updated successfully!");
+            setShowAddEventModal(false);
+            setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+            setEditingEvent(null);
+            setSelectedEventFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        console.error(err);
+      } else {
+        const list = events.map(item => item.id === editingEvent.id ? { ...item, title: newEvent.title, date: dateStr, status: newEvent.status, desc: newEvent.desc } : item);
+        setEvents(list);
+        localStorage.setItem('gurukula_events', JSON.stringify(list));
+        triggerToast("[Offline] Announcement updated locally.");
+        setShowAddEventModal(false);
+        setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+        setEditingEvent(null);
+        setSelectedEventFile(null);
       }
     } else {
-      // Local fallback
-      const list = [...events];
-      const offlineItem = { ...payload, id: Date.now() };
-      list.unshift(offlineItem);
-      setEvents(list);
-      localStorage.setItem('gurukula_events', JSON.stringify(list));
-      triggerToast("[Offline] Event saved to local cache.");
-      setShowAddEventModal(false);
-      setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newEvent.title);
+          formData.append('date', dateStr);
+          formData.append('status', newEvent.status);
+          formData.append('desc', newEvent.desc);
+          if (selectedEventFile) {
+            formData.append('image', selectedEventFile);
+          }
+
+          const res = await fetch(`${API_BASE}/events`, {
+            method: 'POST',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("New Announcement added!");
+            setShowAddEventModal(false);
+            setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+            setSelectedEventFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        // Local fallback
+        const list = [...events];
+        const offlineItem = { id: Date.now(), title: newEvent.title, date: dateStr, status: newEvent.status, desc: newEvent.desc };
+        list.unshift(offlineItem);
+        setEvents(list);
+        localStorage.setItem('gurukula_events', JSON.stringify(list));
+        triggerToast("[Offline] Event saved to local cache.");
+        setShowAddEventModal(false);
+        setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+        setSelectedEventFile(null);
+      }
     }
   };
 
@@ -386,7 +441,7 @@ function App() {
     }
   };
 
-  // Add Blog Post
+  // Add/Edit Blog Post
   const handleAddBlog = async (e) => {
     e.preventDefault();
     if (!newBlog.title || !newBlog.desc) {
@@ -396,33 +451,81 @@ function App() {
 
     const sourceStr = newBlog.source || 'Gurukula News';
     const dateStr = newBlog.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-    const payload = { ...newBlog, source: sourceStr, date: dateStr };
 
-    if (isBackendOnline) {
-      try {
-        const res = await fetch(`${API_BASE}/blog`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          triggerToast("Blog post created!");
-          setShowAddBlogModal(false);
-          setNewBlog({ title: '', source: '', date: '', desc: '' });
-          fetchData();
+    if (editingBlog) {
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newBlog.title);
+          formData.append('source', sourceStr);
+          formData.append('date', dateStr);
+          formData.append('desc', newBlog.desc);
+          if (selectedBlogFile) {
+            formData.append('image', selectedBlogFile);
+          }
+
+          const res = await fetch(`${API_BASE}/blog/${editingBlog.id}`, {
+            method: 'PUT',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("Blog post updated!");
+            setShowAddBlogModal(false);
+            setNewBlog({ title: '', source: '', date: '', desc: '' });
+            setEditingBlog(null);
+            setSelectedBlogFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        console.error(err);
+      } else {
+        const list = blogs.map(item => item.id === editingBlog.id ? { ...item, title: newBlog.title, source: sourceStr, date: dateStr, desc: newBlog.desc } : item);
+        setBlogs(list);
+        localStorage.setItem('gurukula_blogs', JSON.stringify(list));
+        triggerToast("[Offline] Blog article updated locally.");
+        setShowAddBlogModal(false);
+        setNewBlog({ title: '', source: '', date: '', desc: '' });
+        setEditingBlog(null);
+        setSelectedBlogFile(null);
       }
     } else {
-      const list = [...blogs];
-      const offlineItem = { ...payload, id: Date.now() };
-      list.unshift(offlineItem);
-      setBlogs(list);
-      localStorage.setItem('gurukula_blogs', JSON.stringify(list));
-      triggerToast("[Offline] Blog saved to local cache.");
-      setShowAddBlogModal(false);
-      setNewBlog({ title: '', source: '', date: '', desc: '' });
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newBlog.title);
+          formData.append('source', sourceStr);
+          formData.append('date', dateStr);
+          formData.append('desc', newBlog.desc);
+          if (selectedBlogFile) {
+            formData.append('image', selectedBlogFile);
+          }
+
+          const res = await fetch(`${API_BASE}/blog`, {
+            method: 'POST',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("Blog post created!");
+            setShowAddBlogModal(false);
+            setNewBlog({ title: '', source: '', date: '', desc: '' });
+            setSelectedBlogFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        const list = [...blogs];
+        const offlineItem = { id: Date.now(), title: newBlog.title, source: sourceStr, date: dateStr, desc: newBlog.desc };
+        list.unshift(offlineItem);
+        setBlogs(list);
+        localStorage.setItem('gurukula_blogs', JSON.stringify(list));
+        triggerToast("[Offline] Blog saved to local cache.");
+        setShowAddBlogModal(false);
+        setNewBlog({ title: '', source: '', date: '', desc: '' });
+        setSelectedBlogFile(null);
+      }
     }
   };
 
@@ -447,7 +550,7 @@ function App() {
     }
   };
 
-  // Add Gallery item
+  // Add/Edit Gallery item
   const handleAddGallery = async (e) => {
     e.preventDefault();
     if (!newGallery.title) {
@@ -456,44 +559,83 @@ function App() {
     }
     const dateStr = newGallery.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
 
-    if (isBackendOnline) {
-      try {
-        const formData = new FormData();
-        formData.append('title', newGallery.title);
-        formData.append('cat', newGallery.cat);
-        formData.append('emoji', newGallery.emoji || '✨');
-        formData.append('date', dateStr);
-        if (selectedFile) {
-          formData.append('image', selectedFile);
-        }
+    if (editingGallery) {
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newGallery.title);
+          formData.append('cat', newGallery.cat);
+          formData.append('emoji', newGallery.emoji || '✨');
+          formData.append('date', dateStr);
+          if (selectedFile) {
+            formData.append('image', selectedFile);
+          }
 
-        const res = await fetch(`${API_BASE}/gallery`, {
-          method: 'POST',
-          body: formData
-        });
-        if (res.ok) {
-          triggerToast("Gallery image uploaded!");
-          setShowAddGalleryModal(false);
-          setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
-          setSelectedFile(null);
-          fetchData();
+          const res = await fetch(`${API_BASE}/gallery/${editingGallery.id}`, {
+            method: 'PUT',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("Gallery image updated!");
+            setShowAddGalleryModal(false);
+            setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
+            setEditingGallery(null);
+            setSelectedFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        console.error(err);
+      } else {
+        const list = gallery.map(item => item.id === editingGallery.id ? { ...item, title: newGallery.title, cat: newGallery.cat, emoji: newGallery.emoji || '✨', date: dateStr } : item);
+        setGallery(list);
+        localStorage.setItem('gurukula_gallery', JSON.stringify(list));
+        triggerToast("[Offline] Gallery photo updated locally.");
+        setShowAddGalleryModal(false);
+        setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
+        setEditingGallery(null);
+        setSelectedFile(null);
       }
     } else {
-      const payload = { ...newGallery, date: dateStr };
-      const bgColors = ['#fef3c7', '#dcfce7', '#fee2e2', '#e0f2fe', '#fcf6ff', '#fffbeb', '#fae8ff'];
-      const randomBg = bgColors[Math.floor(Math.random() * bgColors.length)];
-      const list = [...gallery];
-      const offlineItem = { ...payload, id: Date.now(), bg: randomBg };
-      list.unshift(offlineItem);
-      setGallery(list);
-      localStorage.setItem('gurukula_gallery', JSON.stringify(list));
-      triggerToast("[Offline] Added to gallery.");
-      setShowAddGalleryModal(false);
-      setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
-      setSelectedFile(null);
+      if (isBackendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('title', newGallery.title);
+          formData.append('cat', newGallery.cat);
+          formData.append('emoji', newGallery.emoji || '✨');
+          formData.append('date', dateStr);
+          if (selectedFile) {
+            formData.append('image', selectedFile);
+          }
+
+          const res = await fetch(`${API_BASE}/gallery`, {
+            method: 'POST',
+            body: formData
+          });
+          if (res.ok) {
+            triggerToast("Gallery image uploaded!");
+            setShowAddGalleryModal(false);
+            setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
+            setSelectedFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        const payload = { ...newGallery, date: dateStr };
+        const bgColors = ['#fef3c7', '#dcfce7', '#fee2e2', '#e0f2fe', '#fcf6ff', '#fffbeb', '#fae8ff'];
+        const randomBg = bgColors[Math.floor(Math.random() * bgColors.length)];
+        const list = [...gallery];
+        const offlineItem = { ...payload, id: Date.now(), bg: randomBg };
+        list.unshift(offlineItem);
+        setGallery(list);
+        localStorage.setItem('gurukula_gallery', JSON.stringify(list));
+        triggerToast("[Offline] Added to gallery.");
+        setShowAddGalleryModal(false);
+        setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
+        setSelectedFile(null);
+      }
     }
   };
 
@@ -518,7 +660,7 @@ function App() {
     }
   };
 
-  // Add Testimonial
+  // Add/Edit Testimonial
   const handleAddTestimonial = async (e) => {
     e.preventDefault();
     if (!newTestimonial.name || !newTestimonial.quote) {
@@ -526,35 +668,65 @@ function App() {
       return;
     }
 
-    const parentAvatars = ["👩‍⚕️", "👨‍💻", "🧑‍🤝‍🧑", "👩‍💼", "👨‍🍳", "👩‍🏫", "👨‍🌾", "👩‍👦"];
-    const randomAvatar = parentAvatars[Math.floor(Math.random() * parentAvatars.length)];
-    const payload = { ...newTestimonial, avatar: randomAvatar };
-
-    if (isBackendOnline) {
-      try {
-        const res = await fetch(`${API_BASE}/testimonials`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          triggerToast("New Review/Testimonial added!");
-          setShowAddTestimonialModal(false);
-          setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
-          fetchData();
+    if (editingTestimonial) {
+      const payload = { ...newTestimonial };
+      if (isBackendOnline) {
+        try {
+          const res = await fetch(`${API_BASE}/testimonials/${editingTestimonial.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            triggerToast("Testimonial updated!");
+            setShowAddTestimonialModal(false);
+            setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+            setEditingTestimonial(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        console.error(err);
+      } else {
+        const list = testimonials.map(item => item.id === editingTestimonial.id ? { ...item, ...payload } : item);
+        setTestimonials(list);
+        localStorage.setItem('gurukula_testimonials', JSON.stringify(list));
+        triggerToast("[Offline] Testimonial updated locally.");
+        setShowAddTestimonialModal(false);
+        setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+        setEditingTestimonial(null);
       }
     } else {
-      const list = [...testimonials];
-      const offlineItem = { ...payload, id: Date.now() };
-      list.unshift(offlineItem);
-      setTestimonials(list);
-      localStorage.setItem('gurukula_testimonials', JSON.stringify(list));
-      triggerToast("[Offline] Review cached locally.");
-      setShowAddTestimonialModal(false);
-      setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+      const parentAvatars = ["👩‍⚕️", "👨‍💻", "🧑‍🤝‍🧑", "👩‍💼", "👨‍🍳", "👩‍🏫", "👨‍🌾", "👩‍👦"];
+      const randomAvatar = parentAvatars[Math.floor(Math.random() * parentAvatars.length)];
+      const payload = { ...newTestimonial, avatar: randomAvatar };
+
+      if (isBackendOnline) {
+        try {
+          const res = await fetch(`${API_BASE}/testimonials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            triggerToast("New Review/Testimonial added!");
+            setShowAddTestimonialModal(false);
+            setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+            fetchData();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        const list = [...testimonials];
+        const offlineItem = { ...payload, id: Date.now() };
+        list.unshift(offlineItem);
+        setTestimonials(list);
+        localStorage.setItem('gurukula_testimonials', JSON.stringify(list));
+        triggerToast("[Offline] Review cached locally.");
+        setShowAddTestimonialModal(false);
+        setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+      }
     }
   };
 
@@ -646,7 +818,7 @@ function App() {
     return (
       <div className="login-container">
         <div className="login-card">
-          <img src={logoImg} alt="Rainbow Kids Logo" />
+          <img src={logoImg} alt="Rainbow Logo" />
           <h2>Gurukula Admin</h2>
           <p>Sign in to manage inquiries, updates, and news</p>
 
@@ -832,7 +1004,7 @@ function App() {
                 {activeTab === 'cms' && "CMS - Home page & Contacts"}
               </h1>
               <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginTop: '2px' }}>
-                Rainbow Kids Gurukula Control Center
+                Rainbow Gurukula Control Center
               </p>
             </div>
           </div>
@@ -1085,7 +1257,11 @@ function App() {
           <div className="content-card">
             <div className="card-header">
               <h3 className="card-title">School Announcements</h3>
-              <button className="btn btn-primary" onClick={() => setShowAddEventModal(true)}>
+              <button className="btn btn-primary" onClick={() => {
+                setEditingEvent(null);
+                setNewEvent({ title: '', date: '', status: 'Upcoming', desc: '' });
+                setShowAddEventModal(true);
+              }}>
                 <Plus size={16} /> Add Announcement
               </button>
             </div>
@@ -1110,7 +1286,18 @@ function App() {
                   <tbody>
                     {events.map((e) => (
                       <tr key={e.id}>
-                        <td><strong>{e.title}</strong></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {e.img && (
+                              <img
+                                src={`${SERVER_URL}${e.img}`}
+                                alt={e.title}
+                                style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }}
+                              />
+                            )}
+                            <strong>{e.title}</strong>
+                          </div>
+                        </td>
                         <td>{e.date}</td>
                         <td>
                           <span className={`badge ${e.status === 'Upcoming' ? 'badge-success' : 'badge-pending'}`}>
@@ -1121,6 +1308,13 @@ function App() {
                           {e.desc}
                         </td>
                         <td style={{ textAlign: 'right' }}>
+                          <button className="btn btn-secondary" style={{ padding: '6px 10px', marginRight: '6px' }} onClick={() => {
+                            setEditingEvent(e);
+                            setNewEvent({ title: e.title, date: e.date, status: e.status, desc: e.desc });
+                            setShowAddEventModal(true);
+                          }}>
+                            <Edit2 size={16} />
+                          </button>
                           <button className="btn btn-danger" style={{ padding: '6px 10px' }} onClick={() => handleDeleteEvent(e.id)}>
                             <Trash2 size={16} />
                           </button>
@@ -1139,7 +1333,11 @@ function App() {
           <div className="content-card">
             <div className="card-header">
               <h3 className="card-title">Blog Posts</h3>
-              <button className="btn btn-primary" onClick={() => setShowAddBlogModal(true)}>
+              <button className="btn btn-primary" onClick={() => {
+                setEditingBlog(null);
+                setNewBlog({ title: '', source: '', date: '', desc: '' });
+                setShowAddBlogModal(true);
+              }}>
                 <Plus size={16} /> Write Article
               </button>
             </div>
@@ -1153,7 +1351,8 @@ function App() {
               <div className="grid-2" style={{ gap: '20px' }}>
                 {blogs.map((b) => (
                   <div key={b.id} className="card" style={{
-                    padding: '25px',
+                    padding: 0,
+                    overflow: 'hidden',
                     border: '1.5px solid var(--border)',
                     backgroundColor: '#ffffff',
                     display: 'flex',
@@ -1161,17 +1360,31 @@ function App() {
                     justifyContent: 'space-between'
                   }}>
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700' }}>{b.source}</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{b.date}</span>
+                      {b.img && (
+                        <div style={{ height: '140px', width: '100%', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
+                          <img src={`${SERVER_URL}${b.img}`} alt={b.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      )}
+                      <div style={{ padding: '25px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700' }}>{b.source}</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{b.date}</span>
+                        </div>
+                        <h4 style={{ fontSize: '1.2rem', marginBottom: '12px' }}>{b.title}</h4>
+                        <p style={{ color: 'var(--text-medium)', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: 0 }}>
+                          {b.desc}
+                        </p>
                       </div>
-                      <h4 style={{ fontSize: '1.2rem', marginBottom: '12px' }}>{b.title}</h4>
-                      <p style={{ color: 'var(--text-medium)', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '20px' }}>
-                        {b.desc}
-                      </p>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', padding: '15px 25px' }}>
+                      <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85rem', marginRight: '8px' }} onClick={() => {
+                        setEditingBlog(b);
+                        setNewBlog({ title: b.title, source: b.source, date: b.date, desc: b.desc });
+                        setShowAddBlogModal(true);
+                      }}>
+                        <Edit2 size={14} /> Edit Post
+                      </button>
                       <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleDeleteBlog(b.id)}>
                         <Trash2 size={14} /> Remove Post
                       </button>
@@ -1188,7 +1401,11 @@ function App() {
           <div className="content-card">
             <div className="card-header">
               <h3 className="card-title">Preschool Gallery</h3>
-              <button className="btn btn-primary" onClick={() => setShowAddGalleryModal(true)}>
+              <button className="btn btn-primary" onClick={() => {
+                setEditingGallery(null);
+                setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
+                setShowAddGalleryModal(true);
+              }}>
                 <Plus size={16} /> Add Photo
               </button>
             </div>
@@ -1244,28 +1461,55 @@ function App() {
                         </span>
                       </div>
                     </div>
-                    {/* Delete button */}
-                    <button
-                      onClick={() => handleDeleteGallery(item.id)}
-                      style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        backgroundColor: 'rgba(255,255,255,0.9)',
-                        color: 'var(--danger)',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '28px',
-                        height: '28px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        boxShadow: 'var(--shadow)'
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {/* Actions container */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <button
+                        onClick={() => {
+                          setEditingGallery(item);
+                          setNewGallery({ title: item.title, cat: item.cat, emoji: item.emoji, date: item.date });
+                          setShowAddGalleryModal(true);
+                        }}
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          color: 'var(--primary)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: 'var(--shadow)'
+                        }}
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGallery(item.id)}
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          color: 'var(--danger)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: 'var(--shadow)'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1362,102 +1606,7 @@ function App() {
                 </div>
               ))}
 
-              {/* Fee Config Card */}
-              <div className="content-card" style={{ marginTop: '30px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <div>
-                    <h3 className="card-title" style={{ margin: 0 }}>💳 Fee Structure Settings</h3>
-                    <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', margin: '5px 0 0 0' }}>
-                      Configure the fees displayed in the Admissions page table.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={addFeeRow}
-                    style={{ gap: '6px', display: 'flex', alignItems: 'center', padding: '8px 16px' }}
-                  >
-                    <Plus size={16} /> Add Program Row
-                  </button>
-                </div>
 
-                <div className="table-container">
-                  <table className="admin-table" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        <th>Program Name</th>
-                        <th>Target Age</th>
-                        <th>Registration Fee</th>
-                        <th>Tuition Fee</th>
-                        <th>Add-on Daycare Option</th>
-                        <th style={{ textAlign: 'center', width: '80px' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cmsFees.map((f, idx) => (
-                        <tr key={f.id || idx}>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={f.program}
-                              onChange={(e) => updateFeeField(idx, 'program', e.target.value)}
-                              required
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={f.age}
-                              onChange={(e) => updateFeeField(idx, 'age', e.target.value)}
-                              required
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={f.registration}
-                              onChange={(e) => updateFeeField(idx, 'registration', e.target.value)}
-                              required
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={f.tuition}
-                              onChange={(e) => updateFeeField(idx, 'tuition', e.target.value)}
-                              required
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={f.daycare}
-                              onChange={(e) => updateFeeField(idx, 'daycare', e.target.value)}
-                              required
-                            />
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              style={{ padding: '6px 10px' }}
-                              onClick={() => deleteFeeRow(idx)}
-                              title="Delete Row"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
                 <button type="submit" className="btn btn-primary" style={{ padding: '14px 35px' }}>
@@ -1473,7 +1622,11 @@ function App() {
           <div className="content-card">
             <div className="card-header">
               <h3 className="card-title">Parents Speak Testimonials</h3>
-              <button className="btn btn-primary" onClick={() => setShowAddTestimonialModal(true)}>
+              <button className="btn btn-primary" onClick={() => {
+                setEditingTestimonial(null);
+                setNewTestimonial({ name: '', child: '', stars: 5, quote: '', avatar: '👩‍👦' });
+                setShowAddTestimonialModal(true);
+              }}>
                 <Plus size={16} /> Add Testimonial
               </button>
             </div>
@@ -1513,6 +1666,13 @@ function App() {
                           {t.quote}
                         </td>
                         <td style={{ textAlign: 'right' }}>
+                          <button className="btn btn-secondary" style={{ padding: '6px 10px', marginRight: '6px' }} onClick={() => {
+                            setEditingTestimonial(t);
+                            setNewTestimonial({ name: t.name, child: t.child, stars: t.stars, quote: t.quote, avatar: t.avatar });
+                            setShowAddTestimonialModal(true);
+                          }}>
+                            <Edit2 size={16} />
+                          </button>
                           <button className="btn btn-danger" style={{ padding: '6px 10px' }} onClick={() => handleDeleteTestimonial(t.id)}>
                             <Trash2 size={16} />
                           </button>
@@ -1609,14 +1769,14 @@ function App() {
         </div>
       )}
 
-      {/* Modal 2: Add Event Modal */}
+      {/* Modal 2: Add/Edit Event Modal */}
       {showAddEventModal && (
-        <div className="modal-overlay" onClick={() => setShowAddEventModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAddEventModal(false); setSelectedEventFile(null); setEditingEvent(null); }}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleAddEvent}>
               <div className="modal-header">
-                <h3>Add School Announcement</h3>
-                <button type="button" onClick={() => setShowAddEventModal(false)} style={{ border: 'none', background: 'none' }}>
+                <h3>{editingEvent ? "Edit School Announcement" : "Add School Announcement"}</h3>
+                <button type="button" onClick={() => { setShowAddEventModal(false); setSelectedEventFile(null); setEditingEvent(null); }} style={{ border: 'none', background: 'none' }}>
                   <X size={20} color="var(--primary-dark)" />
                 </button>
               </div>
@@ -1665,13 +1825,39 @@ function App() {
                     required
                   />
                 </div>
+                <div className="form-group" style={{ marginTop: '15px' }}>
+                  <label>Upload Image File (Optional)</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedEventFile(e.target.files[0]);
+                      } else {
+                        setSelectedEventFile(null);
+                      }
+                    }}
+                  />
+                  {selectedEventFile && (
+                    <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--success)' }}>
+                      Selected: <strong>{selectedEventFile.name}</strong> ({Math.round(selectedEventFile.size / 1024)} KB)
+                    </div>
+                  )}
+                  {editingEvent?.img && !selectedEventFile && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
+                      <img src={`${SERVER_URL}${editingEvent.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => setShowAddEventModal(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowAddEventModal(false); setSelectedEventFile(null); setEditingEvent(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Publish Announcement
+                  {editingEvent ? "Save Changes" : "Publish Announcement"}
                 </button>
               </div>
             </form>
@@ -1679,14 +1865,14 @@ function App() {
         </div>
       )}
 
-      {/* Modal 3: Add Blog Modal */}
+      {/* Modal 3: Add/Edit Blog Modal */}
       {showAddBlogModal && (
-        <div className="modal-overlay" onClick={() => setShowAddBlogModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAddBlogModal(false); setSelectedBlogFile(null); setEditingBlog(null); }}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleAddBlog}>
               <div className="modal-header">
-                <h3>Write Featured Blog Article</h3>
-                <button type="button" onClick={() => setShowAddBlogModal(false)} style={{ border: 'none', background: 'none' }}>
+                <h3>{editingBlog ? "Edit Featured Blog Article" : "Write Featured Blog Article"}</h3>
+                <button type="button" onClick={() => { setShowAddBlogModal(false); setSelectedBlogFile(null); setEditingBlog(null); }} style={{ border: 'none', background: 'none' }}>
                   <X size={20} color="var(--primary-dark)" />
                 </button>
               </div>
@@ -1734,13 +1920,39 @@ function App() {
                     required
                   />
                 </div>
+                <div className="form-group" style={{ marginTop: '15px' }}>
+                  <label>Upload Image File (Optional)</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedBlogFile(e.target.files[0]);
+                      } else {
+                        setSelectedBlogFile(null);
+                      }
+                    }}
+                  />
+                  {selectedBlogFile && (
+                    <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--success)' }}>
+                      Selected: <strong>{selectedBlogFile.name}</strong> ({Math.round(selectedBlogFile.size / 1024)} KB)
+                    </div>
+                  )}
+                  {editingBlog?.img && !selectedBlogFile && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
+                      <img src={`${SERVER_URL}${editingBlog.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => setShowAddBlogModal(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowAddBlogModal(false); setSelectedBlogFile(null); setEditingBlog(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Publish Article
+                  {editingBlog ? "Save Changes" : "Publish Article"}
                 </button>
               </div>
             </form>
@@ -1750,12 +1962,12 @@ function App() {
 
       {/* Modal 4: Add Gallery Photo Modal */}
       {showAddGalleryModal && (
-        <div className="modal-overlay" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); }}>
+        <div className="modal-overlay" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); setEditingGallery(null); }}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleAddGallery}>
               <div className="modal-header">
-                <h3>Add Lightbox Gallery Photo</h3>
-                <button type="button" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); }} style={{ border: 'none', background: 'none' }}>
+                <h3>{editingGallery ? "Edit Gallery Photo" : "Add Lightbox Gallery Photo"}</h3>
+                <button type="button" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); setEditingGallery(null); }} style={{ border: 'none', background: 'none' }}>
                   <X size={20} color="var(--primary-dark)" />
                 </button>
               </div>
@@ -1825,14 +2037,20 @@ function App() {
                       Selected: <strong>{selectedFile.name}</strong> ({Math.round(selectedFile.size / 1024)} KB)
                     </div>
                   )}
+                  {editingGallery?.img && !selectedFile && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
+                      <img src={`${SERVER_URL}${editingGallery.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); }}>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowAddGalleryModal(false); setSelectedFile(null); setEditingGallery(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Save Photo Card
+                  {editingGallery ? "Save Changes" : "Save Photo Card"}
                 </button>
               </div>
             </form>
@@ -1840,14 +2058,14 @@ function App() {
         </div>
       )}
 
-      {/* Modal 5: Add Testimonial Modal */}
+      {/* Modal 5: Add/Edit Testimonial Modal */}
       {showAddTestimonialModal && (
-        <div className="modal-overlay" onClick={() => setShowAddTestimonialModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAddTestimonialModal(false); setEditingTestimonial(null); }}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleAddTestimonial}>
               <div className="modal-header">
-                <h3>Add Parent Testimonial</h3>
-                <button type="button" onClick={() => setShowAddTestimonialModal(false)} style={{ border: 'none', background: 'none' }}>
+                <h3>{editingTestimonial ? "Edit Parent Testimonial" : "Add Parent Testimonial"}</h3>
+                <button type="button" onClick={() => { setShowAddTestimonialModal(false); setEditingTestimonial(null); }} style={{ border: 'none', background: 'none' }}>
                   <X size={20} color="var(--primary-dark)" />
                 </button>
               </div>
@@ -1902,11 +2120,11 @@ function App() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => setShowAddTestimonialModal(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowAddTestimonialModal(false); setEditingTestimonial(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Save Testimonial
+                  {editingTestimonial ? "Save Changes" : "Save Testimonial"}
                 </button>
               </div>
             </form>
