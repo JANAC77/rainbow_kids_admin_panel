@@ -1003,14 +1003,6 @@ function App() {
           </div>
 
           <div className="top-bar-user">
-            {/* Server Status Indicators */}
-            <span className="badge" style={{
-              backgroundColor: isBackendOnline ? 'var(--success-light)' : 'var(--danger-light)',
-              color: isBackendOnline ? 'var(--success)' : 'var(--danger)',
-              border: `1.5px solid ${isBackendOnline ? 'var(--success)' : 'var(--danger)'}`
-            }}>
-              {isBackendOnline ? "🟢 Live Sync Connected" : "🔴 Offline Local Mode"}
-            </span>
 
             <div className="avatar">A</div>
           </div>
