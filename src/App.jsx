@@ -6,8 +6,17 @@ import {
 } from 'lucide-react';
 import logoImg from './assets/logo.jpg';
 
-const SERVER_URL = 'https://rainbow-kids-school-website-b0za.onrender.com';
+const SERVER_URL = import.meta.env.DEV 
+  ? 'http://localhost:5000' 
+  : 'https://rainbow-kids-school-website-b0za.onrender.com';
 const API_BASE = `${SERVER_URL}/api`;
+
+const getImageUrl = (img) => {
+  if (!img) return '';
+  if (img.startsWith('http')) return img;
+  if (img.startsWith('/uploads')) return `${SERVER_URL}${img}`;
+  return img;
+};
 
 // Predefined mock fallbacks matching database
 const fallbackContact = {
@@ -1290,7 +1299,7 @@ function App() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {e.img && (
                               <img
-                                src={`${SERVER_URL}${e.img}`}
+                                src={getImageUrl(e.img)}
                                 alt={e.title}
                                 style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }}
                               />
@@ -1362,7 +1371,7 @@ function App() {
                     <div>
                       {b.img && (
                         <div style={{ height: '140px', width: '100%', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
-                          <img src={`${SERVER_URL}${b.img}`} alt={b.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={getImageUrl(b.img)} alt={b.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       )}
                       <div style={{ padding: '25px' }}>
@@ -1441,7 +1450,7 @@ function App() {
                     }}>
                       {item.img ? (
                         <img
-                          src={`${SERVER_URL}${item.img}`}
+                          src={getImageUrl(item.img)}
                           alt={item.title}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -1847,7 +1856,7 @@ function App() {
                   {editingEvent?.img && !selectedEventFile && (
                     <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
-                      <img src={`${SERVER_URL}${editingEvent.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                      <img src={getImageUrl(editingEvent.img)} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
                     </div>
                   )}
                 </div>
@@ -1942,7 +1951,7 @@ function App() {
                   {editingBlog?.img && !selectedBlogFile && (
                     <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
-                      <img src={`${SERVER_URL}${editingBlog.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                      <img src={getImageUrl(editingBlog.img)} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
                     </div>
                   )}
                 </div>
@@ -2040,7 +2049,7 @@ function App() {
                   {editingGallery?.img && !selectedFile && (
                     <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>Current Image:</span>
-                      <img src={`${SERVER_URL}${editingGallery.img}`} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                      <img src={getImageUrl(editingGallery.img)} alt="Current" style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--border)' }} />
                     </div>
                   )}
                 </div>
