@@ -215,12 +215,10 @@ function App() {
       if (res.ok) {
         const data = await res.json();
         setGallery(data);
-        localStorage.setItem('gurukula_gallery', JSON.stringify(data));
         online = true;
       }
     } catch (e) {
-      const local = localStorage.getItem('gurukula_gallery');
-      setGallery(local ? JSON.parse(local) : []);
+      setGallery([]);
     }
 
     // 6. CMS Content (Slides, Contact & Fees)
@@ -596,10 +594,7 @@ function App() {
           console.error(err);
         }
       } else {
-        const list = gallery.map(item => item.id === editingGallery.id ? { ...item, title: newGallery.title, cat: newGallery.cat, emoji: newGallery.emoji || '✨', date: dateStr } : item);
-        setGallery(list);
-        localStorage.setItem('gurukula_gallery', JSON.stringify(list));
-        triggerToast("[Offline] Gallery photo updated locally.");
+        triggerToast("[Offline] Cannot update gallery while backend is offline.");
         setShowAddGalleryModal(false);
         setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
         setEditingGallery(null);
@@ -632,15 +627,7 @@ function App() {
           console.error(err);
         }
       } else {
-        const payload = { ...newGallery, date: dateStr };
-        const bgColors = ['#fef3c7', '#dcfce7', '#fee2e2', '#e0f2fe', '#fcf6ff', '#fffbeb', '#fae8ff'];
-        const randomBg = bgColors[Math.floor(Math.random() * bgColors.length)];
-        const list = [...gallery];
-        const offlineItem = { ...payload, id: Date.now(), bg: randomBg };
-        list.unshift(offlineItem);
-        setGallery(list);
-        localStorage.setItem('gurukula_gallery', JSON.stringify(list));
-        triggerToast("[Offline] Added to gallery.");
+        triggerToast("[Offline] Cannot add gallery photo while backend is offline.");
         setShowAddGalleryModal(false);
         setNewGallery({ title: '', cat: 'classroom', emoji: '🎨', date: '' });
         setSelectedFile(null);
@@ -662,10 +649,7 @@ function App() {
         console.error(err);
       }
     } else {
-      const updated = gallery.filter(item => item.id !== id);
-      setGallery(updated);
-      localStorage.setItem('gurukula_gallery', JSON.stringify(updated));
-      triggerToast("[Offline] Gallery photo removed.");
+      triggerToast("[Offline] Cannot delete gallery photo while backend is offline.");
     }
   };
 
